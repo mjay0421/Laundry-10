@@ -1,0 +1,644 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Laundry 10 — Manager</title>
+
+<!-- Simple web app manifest hint (optional when packaging) -->
+<!--
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0b5ed7">
+-->
+
+<style>
+  :root{
+    --brand:#0b5ed7;
+    --bg:#f7f7f8;
+    --card:#ffffff;
+    --muted:#6b7280;
+    --radius:12px;
+    --glass: rgba(255,255,255,0.75);
+    font-family: "Inter", system-ui, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+  }
+
+  html,body{height:100%;margin:0;background:linear-gradient(180deg,var(--bg),#ffffff);}
+  /* Splash */
+  #splash{
+    position:fixed;inset:0;display:flex;align-items:center;justify-content:center;
+    background:var(--brand);color:#fff;z-index:9999;flex-direction:column;
+  }
+  #splash img{width:88px;height:88px;border-radius:14px;margin-bottom:12px;box-shadow:0 6px 18px rgba(0,0,0,0.2)}
+  #splash h1{margin:0;font-size:20px;letter-spacing:0.4px}
+  #splash p{margin-top:6px;opacity:0.9;font-size:13px}
+
+  header.app-header{
+    background:var(--card);padding:12px 14px;border-bottom:1px solid #eee;
+    display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:10;
+    box-shadow:0 1px 0 rgba(0,0,0,0.02);
+  }
+  .logo {
+    width:38px;height:38px;border-radius:8px;background:linear-gradient(180deg,var(--brand),#1977ff);
+    display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:16px;
+    box-shadow:0 6px 18px rgba(11,94,215,0.18);
+  }
+  .title {font-size:16px;font-weight:600}
+  .subtitle{font-size:12px;color:var(--muted)}
+
+  main{padding:12px;padding-bottom:88px;max-width:760px;margin:0 auto;}
+
+  .card{background:var(--card);padding:12px;border-radius:var(--radius);box-shadow:0 6px 18px rgba(18,38,63,0.04);margin-bottom:12px}
+  .row{display:flex;align-items:center;gap:8px}
+  .muted{color:var(--muted);font-size:13px}
+  .controls{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+  button.btn{background:var(--brand);color:#fff;border:0;padding:8px 12px;border-radius:10px;font-weight:600;cursor:pointer}
+  button.ghost{background:#fff;border:1px solid #e6e6e6;color:#333}
+  .small{font-size:13px;padding:6px 8px;border-radius:8px}
+  input,select,textarea{
+    width:100%;padding:10px;border:1px solid #e6e6e6;border-radius:10px;font-size:14px;box-sizing:border-box;
+  }
+
+  /* list */
+  .list-card{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+  .list-left{flex:1}
+  .list-right{text-align:right;min-width:120px}
+  .pill{display:inline-block;padding:6px 8px;border-radius:999px;background:#f1f5f9;font-size:12px;color:var(--muted)}
+
+  /* bottom nav */
+  nav.bottom-nav{
+    position:fixed;left:0;right:0;bottom:12px;margin:0 auto;max-width:760px;padding:8px;
+    display:flex;justify-content:space-between;gap:8px;z-index:20;
+  }
+  .nav-btn{
+    flex:1;background:var(--card);border-radius:14px;padding:10px 8px;text-align:center;font-weight:600;box-shadow:0 6px 18px rgba(18,38,63,0.06);cursor:pointer;
+    border:1px solid #eee;
+  }
+  .nav-btn.active{background:linear-gradient(180deg,#0b5ed7,#1977ff);color:#fff;border:0}
+
+  /* form modal */
+  #modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:999;padding:18px;align-items:center;justify-content:center}
+  #modal .dialog{max-width:520px;width:100%;background:var(--card);padding:14px;border-radius:12px}
+
+  /* receipt */
+  .receipt{font-family:monospace;background:#fafafa;padding:12px;border-radius:8px;border:1px dashed #eee;font-size:13px}
+
+  /* small helpers */
+  .muted-2{color:#9aa2b1;font-size:12px}
+
+  /* responsive */
+  @media(min-width:800px){
+    body{background:#f3f6fb}
+    main{padding:20px}
+    nav.bottom-nav{bottom:20px}
+  }
+</style>
+</head>
+<body>
+
+<!-- Splash -->
+<div id="splash" aria-hidden="false">
+  <!-- You can replace this with icon-192.png path if you add an image -->
+  <div class="logo" style="width:96px;height:96px;border-radius:16px;font-size:26px">10</div>
+  <h1>Laundry 10</h1>
+  <p>Freshness. Reimagined — loading app…</p>
+</div>
+
+<!-- App Header -->
+<header class="app-header">
+  <div class="logo">10</div>
+  <div>
+    <div class="title">Laundry 10</div>
+    <div class="subtitle">Manager • Pickup & Delivery</div>
+  </div>
+  <div style="margin-left:auto">
+    <button id="exportBtn" class="small ghost">Export</button>
+    <button id="importBtn" class="small ghost">Import</button>
+  </div>
+</header>
+
+<main id="app">
+  <!-- Home View -->
+  <section id="view-home" class="view">
+    <div class="card">
+      <div class="row" style="justify-content:space-between;align-items:center">
+        <div>
+          <div style="font-weight:700;font-size:16px">Welcome back</div>
+          <div class="muted-2">Quick overview of today's tasks</div>
+        </div>
+        <div style="text-align:right">
+          <div style="font-size:18px;font-weight:700" id="stat-total">0</div>
+          <div class="muted">Total orders</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="row" style="justify-content:space-between;margin-bottom:8px">
+        <div class="row">
+          <button id="addQuick" class="btn small">+ Add Order</button>
+          <button id="showOwing" class="small ghost">Who owes</button>
+          <button id="showToday" class="small ghost">Deliveries today</button>
+        </div>
+        <div>
+          <select id="filterSelect" class="small">
+            <option value="all">All orders</option>
+            <option value="pending">Pending</option>
+            <option value="ready">Ready</option>
+            <option value="delivered">Delivered</option>
+            <option value="owing">Owing</option>
+            <option value="today">Deliveries today</option>
+          </select>
+        </div>
+      </div>
+
+      <div id="list"></div>
+    </div>
+  </section>
+
+  <!-- Add/Edit View (also used via modal) -->
+  <section id="view-add" class="view" style="display:none">
+    <div class="card">
+      <h3 id="addTitle">Add Order</h3>
+      <div style="margin-top:8px">
+        <label class="muted">Customer name</label>
+        <input id="name" placeholder="e.g. Chuks O." />
+        <label class="muted">Phone (optional)</label>
+        <input id="phone" placeholder="08123456789" type="tel"/>
+        <label class="muted">Items / Notes</label>
+        <input id="items" placeholder="3 shirts, 2 trousers" />
+        <label class="muted">Delivery date</label>
+        <input id="delivery" type="date"/>
+        <div style="display:flex;gap:8px">
+          <div style="flex:1">
+            <label class="muted">Total amount (₦)</label>
+            <input id="amount_total" type="number" placeholder="Total" />
+          </div>
+          <div style="width:160px">
+            <label class="muted">Amount paid (₦)</label>
+            <input id="amount_paid" type="number" placeholder="Paid" />
+          </div>
+        </div>
+        <label class="muted">Status</label>
+        <select id="status">
+          <option value="pending">Pending</option>
+          <option value="ready">Ready</option>
+          <option value="delivered">Delivered</option>
+        </select>
+      </div>
+
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px">
+        <button id="save" class="btn">Save order</button>
+        <button id="cancel" class="small ghost">Cancel</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Profile -->
+  <section id="view-profile" class="view" style="display:none">
+    <div class="card">
+      <h3>Business Profile</h3>
+      <label class="muted">Business name</label>
+      <input id="biz_name" placeholder="Laundry 10" />
+      <label class="muted">Contact phone</label>
+      <input id="biz_phone" placeholder="081..." />
+      <label class="muted">Address</label>
+      <input id="biz_address" placeholder="Area, City" />
+      <label class="muted">Business hours</label>
+      <input id="biz_hours" placeholder="Mon-Fri 8:00 - 18:00" />
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px">
+        <button id="saveProfile" class="btn">Save profile</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h4>Backup & Restore</h4>
+      <div class="muted-2">Export JSON or import to restore data. Cloud backup (Firebase) is available with configuration — see commented code.</div>
+      <div style="display:flex;gap:8px;margin-top:8px">
+        <button id="exportBtn2" class="small ghost">Export JSON</button>
+        <button id="importBtn2" class="small ghost">Import JSON</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Receipt / Order detail -->
+  <section id="view-order" class="view" style="display:none">
+    <div class="card" id="orderDetail"></div>
+  </section>
+</main>
+
+<!-- Bottom navigation -->
+<nav class="bottom-nav">
+  <div id="nav-home" class="nav-btn active">Home</div>
+  <div id="nav-add" class="nav-btn">Add</div>
+  <div id="nav-profile" class="nav-btn">Profile</div>
+</nav>
+
+<!-- Modal Form (for mobile) -->
+<div id="modal" aria-hidden="true">
+  <div class="dialog card">
+    <h3 id="formTitle">Add Order</h3>
+    <label class="muted">Customer name</label>
+    <input id="m_name" placeholder="Customer name" />
+    <label class="muted">Phone</label>
+    <input id="m_phone" type="tel" placeholder="081..." />
+    <label class="muted">Items</label>
+    <input id="m_items" placeholder="Items / notes" />
+    <label class="muted">Delivery date</label>
+    <input id="m_delivery" type="date" />
+    <label class="muted">Total (₦)</label>
+    <input id="m_amount_total" type="number" />
+    <label class="muted">Paid (₦)</label>
+    <input id="m_amount_paid" type="number" />
+    <label class="muted">Status</label>
+    <select id="m_status">
+      <option value="pending">Pending</option>
+      <option value="ready">Ready</option>
+      <option value="delivered">Delivered</option>
+    </select>
+
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:10px">
+      <button id="m_save" class="btn">Save</button>
+      <button id="m_cancel" class="small ghost">Close</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ======= App Data & Storage ======= */
+const LS_KEY = 'laundry10_orders_v2';
+const LS_PROFILE = 'laundry10_profile_v1';
+let orders = JSON.parse(localStorage.getItem(LS_KEY) || '[]');
+let profile = JSON.parse(localStorage.getItem(LS_PROFILE) || '{}');
+
+function saveAll(){ localStorage.setItem(LS_KEY, JSON.stringify(orders)); localStorage.setItem(LS_PROFILE, JSON.stringify(profile)); renderApp(currentFilter); updateStats(); }
+
+/* Unique ID */
+function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,6); }
+
+/* Views & Nav */
+const VIEWS = ['home','add','profile','order'];
+let currentFilter = 'all';
+let editingId = null;
+
+/* Helpers */
+function formatDate(d){
+  if(!d) return 'no date';
+  const dt = new Date(d + 'T00:00:00');
+  if(isNaN(dt)) return d;
+  return dt.toLocaleDateString();
+}
+function currency(n){ return '₦' + Number(n||0).toLocaleString(); }
+function owesAmount(o){ return Number(o.amount_total||0) - Number(o.amount_paid||0); }
+
+/* DOM refs */
+const listEl = document.getElementById('list');
+const statTotal = document.getElementById('stat-total');
+const splash = document.getElementById('splash');
+
+/* ======= UI: Render List ======= */
+function renderApp(filter='all'){
+  currentFilter = filter || currentFilter;
+  // sort by delivery (empty at end)
+  let show = orders.slice().sort((a,b)=> (a.delivery||'').localeCompare(b.delivery||''));
+  if(currentFilter==='owing') show = show.filter(o => owesAmount(o) > 0);
+  if(currentFilter==='today'){
+    const today = new Date().toISOString().slice(0,10);
+    show = show.filter(o => o.delivery === today);
+  }
+  if(['pending','ready','delivered'].includes(currentFilter)) show = show.filter(o=> o.status === currentFilter);
+
+  listEl.innerHTML = '';
+  if(show.length === 0){
+    listEl.innerHTML = `<div class="muted">No orders found.</div>`;
+    return;
+  }
+  for(const o of show){
+    const owes = owesAmount(o);
+    const div = document.createElement('div'); div.className='card list-card';
+    div.innerHTML = `
+      <div class="list-left">
+        <div style="display:flex;gap:8px;align-items:center">
+          <div style="width:46px;height:46px;border-radius:10px;background:#f1f5f9;display:flex;align-items:center;justify-content:center;font-weight:700">${(o.name||'')[0]||'?'}</div>
+          <div>
+            <div style="font-weight:700">${escapeHtml(o.name)||'(no name)'}</div>
+            <div class="muted" style="font-size:13px">${escapeHtml(o.phone||'')} • ${escapeHtml(o.items||'')}</div>
+          </div>
+        </div>
+      </div>
+      <div class="list-right">
+        <div class="muted" style="font-size:13px">${o.delivery || 'no date'}</div>
+        <div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end">
+          <div class="pill">${o.status}</div>
+          <div class="pill">Owes ${currency(owes)}</div>
+        </div>
+        <div style="margin-top:10px;display:flex;gap:6px;justify-content:flex-end">
+          <button class="small ghost" data-act="view" data-id="${o.id}">View</button>
+          <button class="small" data-act="edit" data-id="${o.id}">Edit</button>
+          <button class="small ghost" data-act="paid" data-id="${o.id}">Mark paid</button>
+          <button class="small ghost" data-act="delivered" data-id="${o.id}">Delivered</button>
+          <button class="small ghost" data-act="call" data-id="${o.id}">Call</button>
+        </div>
+      </div>
+    `;
+    listEl.appendChild(div);
+  }
+}
+
+/* ======= Actions: Buttons & Events ======= */
+document.getElementById('addQuick').onclick = ()=> openModal();
+document.getElementById('showOwing').onclick = ()=> { currentFilter='owing'; renderApp('owing'); }
+document.getElementById('showToday').onclick = ()=> { currentFilter='today'; renderApp('today'); }
+document.getElementById('filterSelect').onchange = (e)=> { currentFilter = e.target.value; renderApp(currentFilter); }
+
+listEl.addEventListener('click', e=>{
+  const btn = e.target.closest('button');
+  if(!btn) return;
+  const id = btn.dataset.id;
+  const act = btn.dataset.act;
+  const idx = orders.findIndex(x=>x.id===id);
+  if(idx === -1) return;
+  if(act==='view') { showOrderDetail(orders[idx]); }
+  else if(act==='edit'){ editingId = id; openModalForEdit(orders[idx]); }
+  else if(act==='paid'){ markPaid(idx); }
+  else if(act==='delivered'){ orders[idx].status = 'delivered'; saveAll(); }
+  else if(act==='call'){ const phone = orders[idx].phone||''; if(phone) location.href = 'tel:'+phone; else alert('No phone number saved.'); }
+});
+
+/* ======= Modal (Add/Edit) handling - desktop modal and mobile modal both supported ======= */
+const modal = document.getElementById('modal');
+const m_fields = ['m_name','m_phone','m_items','m_delivery','m_amount_total','m_amount_paid','m_status'];
+
+function openModal(){
+  editingId = null;
+  m_fields.forEach(f => document.getElementById(f).value = '');
+  document.getElementById('m_status').value = 'pending';
+  document.getElementById('formTitle').innerText = 'Add Order';
+  modal.style.display = 'flex';
+  modal.setAttribute('aria-hidden','false');
+}
+function openModalForEdit(o){
+  editingId = o.id;
+  document.getElementById('m_name').value = o.name || '';
+  document.getElementById('m_phone').value = o.phone || '';
+  document.getElementById('m_items').value = o.items || '';
+  document.getElementById('m_delivery').value = o.delivery || '';
+  document.getElementById('m_amount_total').value = o.amount_total || '';
+  document.getElementById('m_amount_paid').value = o.amount_paid || '';
+  document.getElementById('m_status').value = o.status || 'pending';
+  document.getElementById('formTitle').innerText = 'Edit Order';
+  modal.style.display = 'flex';
+  modal.setAttribute('aria-hidden','false');
+}
+document.getElementById('m_cancel').onclick = ()=> { modal.style.display='none'; modal.setAttribute('aria-hidden','true'); editingId = null; }
+document.getElementById('m_save').onclick = ()=> {
+  const data = {};
+  data.name = document.getElementById('m_name').value.trim();
+  data.phone = document.getElementById('m_phone').value.trim();
+  data.items = document.getElementById('m_items').value.trim();
+  data.delivery = document.getElementById('m_delivery').value;
+  data.amount_total = Number(document.getElementById('m_amount_total').value||0);
+  data.amount_paid = Number(document.getElementById('m_amount_paid').value||0);
+  data.status = document.getElementById('m_status').value;
+  if(!data.name){ alert('Please enter a name'); return; }
+  if(editingId){
+    const i = orders.findIndex(x=>x.id===editingId);
+    orders[i] = {...orders[i], ...data};
+  } else {
+    orders.push({...data, id: uid(), createdAt: new Date().toISOString()});
+  }
+  saveAll();
+  modal.style.display = 'none';
+  modal.setAttribute('aria-hidden','true');
+  editingId = null;
+}
+
+/* ======= Inline Add/Edit form (desktop) ======= */
+document.getElementById('nav-add').onclick = ()=> showView('add');
+document.getElementById('nav-home').onclick = ()=> showView('home');
+document.getElementById('nav-profile').onclick = ()=> showView('profile');
+document.getElementById('cancel').onclick = ()=> showView('home');
+
+function showView(name){
+  // toggle active nav
+  document.querySelectorAll('.nav-btn').forEach(el => el.classList.remove('active'));
+  if(name === 'home') document.getElementById('nav-home').classList.add('active');
+  if(name === 'add') document.getElementById('nav-add').classList.add('active');
+  if(name === 'profile') document.getElementById('nav-profile').classList.add('active');
+
+  // show/hide sections
+  document.getElementById('view-home').style.display = name === 'home' ? '' : 'none';
+  document.getElementById('view-add').style.display = name === 'add' ? '' : 'none';
+  document.getElementById('view-profile').style.display = name === 'profile' ? '' : 'none';
+  document.getElementById('view-order').style.display = 'none';
+}
+
+/* ======= Mark paid action ======= */
+function markPaid(index){
+  const owed = owesAmount(orders[index]);
+  const pay = prompt(`Amount to add to paid (owes ₦${owed}):`, owed>0?owed:0);
+  if(pay !== null){
+    orders[index].amount_paid = Number(orders[index].amount_paid||0) + Number(pay||0);
+    saveAll();
+  }
+}
+
+/* ======= Show order detail & receipt generation ======= */
+function showOrderDetail(o){
+  showView('order');
+  document.querySelectorAll('.nav-btn').forEach(el => el.classList.remove('active'));
+  // build receipt HTML
+  const owed = owesAmount(o);
+  const html = `
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <div>
+        <div style="font-weight:700">${escapeHtml(o.name)}</div>
+        <div class="muted">${escapeHtml(o.phone||'')}</div>
+      </div>
+      <div style="text-align:right">
+        <div class="muted">Delivery: ${o.delivery || 'no date'}</div>
+        <div style="margin-top:6px" class="pill">${o.status}</div>
+      </div>
+    </div>
+    <hr style="margin:12px 0;border:none;border-top:1px solid #f1f5f9" />
+    <div class="receipt">
+      <div><strong>Items:</strong> ${escapeHtml(o.items||'')}</div>
+      <div style="margin-top:6px"><strong>Total:</strong> ${currency(o.amount_total)}</div>
+      <div><strong>Paid:</strong> ${currency(o.amount_paid)}</div>
+      <div style="margin-top:6px"><strong>Owes:</strong> ${currency(owed)}</div>
+      <div style="margin-top:8px;font-size:12px;color:var(--muted)">Order ID: ${o.id}</div>
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px">
+      <button class="small ghost" id="shareReceipt">Share</button>
+      <button class="small" id="printReceipt">Print</button>
+      <button class="small" id="editReceipt">Edit</button>
+      <button class="small ghost" id="deleteOrder">Delete</button>
+    </div>
+  `;
+  document.getElementById('orderDetail').innerHTML = html;
+
+  // attach actions
+  document.getElementById('editReceipt').onclick = ()=> { editingId = o.id; openModalForEdit(o); }
+  document.getElementById('deleteOrder').onclick = ()=> {
+    if(confirm('Delete this order?')) {
+      orders = orders.filter(x=>x.id!==o.id);
+      saveAll(); showView('home');
+    }
+  };
+  document.getElementById('printReceipt').onclick = ()=> printReceipt(o);
+  document.getElementById('shareReceipt').onclick = ()=> shareReceipt(o);
+}
+
+/* Print */
+function printReceipt(o){
+  const w = window.open('','_blank');
+  const html = `<pre style="font-family:monospace;font-size:14px">
+Laundry 10
+---------
+Name: ${escapeHtml(o.name)}
+Phone: ${escapeHtml(o.phone||'')}
+Items: ${escapeHtml(o.items||'')}
+Delivery: ${o.delivery || 'no date'}
+Total: ${currency(o.amount_total)}
+Paid: ${currency(o.amount_paid)}
+Owes: ${currency(owesAmount(o))}
+Order ID: ${o.id}
+  </pre>`;
+  w.document.write(html);
+  w.document.close();
+  w.print();
+}
+
+/* Share (uses Web Share API if available) */
+function shareReceipt(o){
+  const text = `Laundry 10
+Name: ${o.name}
+Phone: ${o.phone || ''}
+Delivery: ${o.delivery || ''}
+Items: ${o.items || ''}
+Total: ${currency(o.amount_total)}
+Paid: ${currency(o.amount_paid)}
+Owes: ${currency(owesAmount(o))}
+Order ID: ${o.id}`;
+  if(navigator.share){
+    navigator.share({title:'Laundry 10 - Receipt', text}).catch(()=>{ alert('Share canceled'); });
+  } else {
+    // fallback: copy to clipboard
+    navigator.clipboard?.writeText(text).then(()=> alert('Receipt copied to clipboard'));
+  }
+}
+
+/* ======= Export & Import ======= */
+document.getElementById('exportBtn').onclick = exportJSON;
+document.getElementById('exportBtn2').onclick = exportJSON;
+function exportJSON(){
+  const data = {orders,profile,exportedAt:new Date().toISOString()};
+  const blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = `laundry10_backup_${new Date().toISOString().slice(0,10)}.json`;
+  document.body.appendChild(a); a.click(); a.remove();
+  URL.revokeObjectURL(url);
+}
+document.getElementById('importBtn').onclick = importJSON;
+document.getElementById('importBtn2').onclick = importJSON;
+function importJSON(){
+  const input = document.createElement('input'); input.type='file'; input.accept='.json,application/json';
+  input.onchange = e=> {
+    const file = e.target.files[0];
+    if(!file) return;
+    const reader = new FileReader();
+    reader.onload = ()=> {
+      try{
+        const data = JSON.parse(reader.result);
+        if(Array.isArray(data.orders)) orders = data.orders;
+        if(data.profile) profile = data.profile;
+        saveAll(); alert('Import successful');
+      } catch(err){ alert('Failed to import: ' + err.message); }
+    };
+    reader.readAsText(file);
+  };
+  input.click();
+}
+
+/* ======= Profile Save ======= */
+document.getElementById('saveProfile').onclick = ()=> {
+  profile.name = document.getElementById('biz_name').value.trim() || 'Laundry 10';
+  profile.phone = document.getElementById('biz_phone').value.trim();
+  profile.address = document.getElementById('biz_address').value.trim();
+  profile.hours = document.getElementById('biz_hours').value.trim();
+  saveAll();
+  alert('Profile saved');
+};
+
+/* ======= Simple reminders on app load and notifications ======= */
+function remindOnOpen(){
+  const today = new Date().toISOString().slice(0,10);
+  const owe = orders.filter(o => owesAmount(o) > 0);
+  const due = orders.filter(o => o.delivery === today);
+  let parts = [];
+  if(due.length) parts.push(`Deliveries today: ${due.length}`);
+  if(owe.length) parts.push(`People owing: ${owe.length}`);
+  if(parts.length){
+    setTimeout(()=> alert(parts.join('\n')), 600); // small delay so splash hides first
+    // Try browser notification
+    tryNotify(parts.join('\n'));
+  }
+}
+
+/* Notification permission & show */
+function tryNotify(text){
+  if(!('Notification' in window)) return;
+  if(Notification.permission === 'granted'){ new Notification('Laundry 10', {body:text, icon:''}); }
+  else if(Notification.permission !== 'denied'){
+    Notification.requestPermission().then(p=>{
+      if(p==='granted') new Notification('Laundry 10', {body:text});
+    });
+  }
+}
+
+/* ======= Utility & Init ======= */
+function updateStats(){
+  statTotal.innerText = orders.length;
+  // fill profile inputs
+  document.getElementById('biz_name').value = profile.name || 'Laundry 10';
+  document.getElementById('biz_phone').value = profile.phone || '';
+  document.getElementById('biz_address').value = profile.address || '';
+  document.getElementById('biz_hours').value = profile.hours || '';
+}
+
+/* Escape HTML to prevent injection in receipt view */
+function escapeHtml(s){
+  if(!s) return '';
+  return String(s).replace(/[&<>"']/g, function(m){
+    return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]);
+  });
+}
+
+/* Delete order helper used from profile or elsewhere (not shown) */
+function deleteOrderById(id){
+  orders = orders.filter(x=>x.id !== id);
+  saveAll();
+}
+
+/* ======= Small polish: Edit and delete handlers were covered earlier ======= */
+
+/* ======= Splash hide, initial render & event wiring ======= */
+window.addEventListener('load', ()=>{
+  // hide splash after small delay
+  setTimeout(()=> {
+    splash.style.display = 'none';
+    renderApp('all');
+    updateStats();
+    remindOnOpen();
+  }, 700);
+});
+
+/* ======= Optional: Cloud backup (Firebase) Placeholder =======
+If you want cloud backup in future, initialize Firebase and use:
+  firebase.firestore().collection('users').doc(USER_ID).set({orders,...})
+This is intentionally left out to avoid accidental network code in this simple file.
+================================================================== */
+
+</script>
+</body>
+</html>
